@@ -14,22 +14,24 @@
     5.  **Documentation:** Compile all findings into a concise **"HD61700 Behavior Reference Guide"**. *This guide is critical input for the AI in subsequent phases.*
 *   **Output:** Validated `.ASM` test snippets, validated `.ASM` built-in templates, Signed Modulo solution, and the crucial "HD61700 Behavior Reference Guide".
 
-**Phase 1: Grammar, Parsing, and Semantic Foundation**
-*   **Objective:** Develop and validate the front-end components: Lexer, Parser, AST, Symbol Table, and basic Semantic Analysis.
+**Phase 1: Front-End Foundation (Lexer, Parser, AST, Semantics)**
+*   **Objective:** Develop and validate the front-end components: hand-written Lexer, hand-written Parser, AST, Symbol Table, and basic Semantic Analysis.
 *   **Tasks:**
     1.  **C Test Suite:** Create comprehensive C test programs covering:
         *   **Positive Cases:** All specified C features (data types, control structures, structs, enums, pointers, `volatile`, built-in calls, recursion, `print()`, literals, `asm()`, `typedef`).
         *   **Negative Cases:** Syntax errors, type mismatches, use of unsupported features (float, function pointers, etc.).
-    2.  **ANTLR Grammar (`.g4`):** 
-      - The ANTLR grammar will be the sample C gramar from the examples directory from ANTLR: https://github.com/antlr/grammars-v4/blob/master/c/C.g4.  
-	  - Instead of forking and pruning that C ANTLR grammar, the strategy will be to leave that grammar almost intact with only some required additions and then implement a strict semantic filter (quicker first milestone, but users will see errors only after parsing).
-	  - Grammar edited *in place* (`C.g4`) to add PB-tokens (`&HΓÇª`, binary literals), `printStatement` rule, etc; *no* upstream rules are deleted.
-    3.  **Parser & AST Generation:** Implement the ANTLR listener/visitor to build the Abstract Syntax Tree (AST).
-    4.  **Symbol Table & Semantic Analysis:** Implement symbol table management (scopes, types, variables, functions) and core semantic checks (type checking, declaration errors, `const` enforcement, `volatile` usage checks).  
-	5.  **Table-driven `UnsupportedFeatureChecker` pass emits an *immediate error* for floats, long long, function pointers, etc.  Deleting a table entry re-enables the feature.**
-    6.  **Testing & Refinement:** Use the C test suite to thoroughly test the parser and semantic analyzer. Utilize compiler flags (`-tokens`, `-ast`, `-symboltable`, `-errors`) for debugging. Ensure all valid programs parse correctly and semantic errors are caught.  Unit tests use *pytest*; test files live under `tests/`.
-*   **Output:** Validated `.g4` file, Python code for parsing, AST generation, symbol table, and semantic analysis. Tested C programs.
-
+    2.  **Hand-written Lexer (Tokenizer):**
+        *   Implement a deterministic tokenizer in Python (no parser generators).
+        *   Produce tokens with filename/line/column spans for high-quality diagnostics.
+        *   Support PB-1000 literals and extensions (e.g., `&H...` hex, binary literals if specified, character and string literals, escape handling).
+    3.  **Hand-written Parser & AST Generation:**
+        *   Implement a recursive-descent parser for declarations, statements, and translation units.
+        *   Use a Pratt / precedence-climbing expression parser to handle C operator precedence and associativity.
+        *   Build a clean, testable AST with explicit node types and source locations.
+    4.  **Symbol Table & Semantic Analysis:** Implement symbol table management (scopes, types, variables, functions) and core semantic checks (type checking, declaration errors, `const` enforcement, `volatile` usage checks).
+    5.  **Table-driven `UnsupportedFeatureChecker` pass emits an *immediate error* for floats, long long, function pointers, etc.  Deleting a table entry re-enables the feature.**
+    6.  **Testing & Refinement:** Use the C test suite to thoroughly test the lexer, parser, and semantic analyzer. Utilize compiler flags (`-tokens`, `-ast`, `-symboltable`, `-errors`) for debugging. Ensure all valid programs parse correctly and semantic errors are caught. Unit tests use *pytest*; test files live under `tests/`.
+*   **Output:** Python code for lexing, parsing, AST generation, symbol table, and semantic analysis. Tested C programs.
 **Phase 2: Intermediate Representation (IR) Design & Generation**
 *   **Objective:** Define and implement the TAC/SSA-based IR pipeline as specified in the IR Addendum.
 *   **Tasks:**
