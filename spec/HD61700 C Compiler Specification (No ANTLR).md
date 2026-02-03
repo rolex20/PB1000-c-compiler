@@ -328,6 +328,7 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
 - **Format**:
   - Generate a single ANSI text file containing HD61700 assembly compatible with the **PB-1000 built-in assembler**.
   - Use only documented instruction formats (see Table 5.2 in the Assembly Guide).
+  - Include pseudo-instructions: `EQU`, `ORG`, `START`, `DB`
 
 - **Directives (PB-1000 built-in assembler)**:
   - Supported: `EQU`, `ORG`, `START`, `DB`, `DS`.
@@ -790,9 +791,6 @@ While direct pointer access with the `volatile` keyword (`*(volatile unsigned ch
 
 The `peek`/`poke` family of built-in functions offers a convenient alternative syntax for direct memory access on the PB-1000, complementing the standard `volatile` qualifier. The compiler ensures these functions generate efficient, non-optimized memory operations internally, leveraging the HD61700's register indirect addressing modes for optimal performance.
 
-# Addendum: Licensing
-
-- All new source files carry a BSD-3-Clause license header.
 
 # Addendum: Python guidelines
 
@@ -805,9 +803,77 @@ The `peek`/`poke` family of built-in functions offers a convenient alternative s
 
 ## Project Layout
 
-1. Root: `pbcc.py` + `README.md`.
-1. Front-end, semantic core, lowering, IR, optimisation passes, and back-end each live in their own top-level folder under the project root (e.g. front_end/, semantic/, lowering/, ir/, passes/, back_end/).
-1. Tests:  All test files under `tests/`.
+- This is a conceptual recommended folder structure for files to be created.
+.
+├── pyproject.toml
+├── pb1kcc.py              # main controller (CLI + orchestration entrypoint)
+├── README.md
+├── LICENSE
+├── NOTICE
+├── CITATION.cff
+│
+├── spec/                 # design/spec/validation markdown files (source of truth)
+│   ├── HD61700 C Compiler Specification.md
+│   ├── HD61700 C Cross Compiler Project Plan.md
+│   ├── HD61700 PB-1000 Compiler Developer Lessons Learned (Phase 0).md
+│   ├── Phase 0 Validation Prompts.md
+│   ├── Addendum Results from Phase 0.md
+│   └── HD61700 PB-1000 Assembly Guide Old.md
+│
+├── docs/                 # end-user docs (how to install/run, CLI, examples)
+│   └── usage.md
+│
+├── src/                  # Python “src layout” (recommended)
+│   └── pb1kcc/
+│       ├── __init__.py
+│       ├── __main__.py   # enables: python -m pb1kcc ...
+│       ├── cli.py        # arg parsing, orchestration
+│       ├── diagnostics.py
+│       ├── config.py
+│       │
+│       ├── frontend/
+│       │   ├── tokens.py
+│       │   ├── lexer.py
+│       │   ├── ast.py
+│       │   └── parser.py
+│       │
+│       ├── sema/
+│       │   ├── types.py
+│       │   ├── symbols.py
+│       │   └── typecheck.py
+│       │
+│       ├── ir/           # can start empty, but reserved for later phases
+│       │   ├── ir.py
+│       │   └── builder.py
+│       │
+│       ├── passes/       # optimizations/lowering steps
+│       │   └── __init__.py
+│       │
+│       ├── backend/
+│       │   ├── asm_emit.py
+│       │   ├── callingconv.py
+│       │   └── codegen.py
+│       │
+│       └── target/
+│           └── pb1000_asm_constraints.py
+│
+├── tests/
+│   ├── unit/
+│   │   ├── test_lexer.py
+│   │   ├── test_parser.py
+│   │   └── test_typecheck.py
+│   ├── integration/
+│   │   └── test_compile_snippets.py
+│   └── golden/
+│       ├── c/            # input programs
+│       ├── ast/          # expected ast dumps (optional)
+│       ├── ir/           # expected ir dumps (optional)
+│       └── asm/          # expected asm output
+│
+└── examples/
+    ├── hello.c
+    └── fib.c
+
 
 ## Inline Documentation
 
