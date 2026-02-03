@@ -6,6 +6,14 @@
 
 This document defines the requirements for a modern C cross compiler designed for the Hitachi HD61700 CPU in the Casio PB-1000 handheld computer. The compiler aims to provide a joyful programming experience, enabling developers to create small benchmarking programs and detailed RAM analysis tools. It excludes floating-point support, focusing on integer operations, and omits a standard library while providing built-in functions for essential tasks. The specification ensures compatibility with the HD61700ΓÇÖs architecture and the PB-1000ΓÇÖs environment, supporting inline assembly for direct system call interaction. A comparison with the C23 standard highlights differences to aid decision-making on additional features.
 
+
+## Conformance and Implementation Constraints
+
+- This compiler implements a **deliberate subset** of C suitable for the PB-1000/HD61700. It is **not** intended to be a fully conforming C23 implementation.
+- The C23 standard is referenced only for terminology and comparison.
+- Any syntax or feature not explicitly listed as supported in this specification should produce a clear compile-time error.
+- Implementation constraint: the compiler must be runnable and testable using **only Python** (no Java / no ANTLR / no external parser generator).
+
 ## Compiler Objectives
 
 The compiler must:
@@ -14,7 +22,8 @@ The compiler must:
 - Generate HD61700 assembly code in one text file, compatible with the PB-1000ΓÇÖs internal assembler.
 - The compiler will run on a powerful PC and will generate assembly code in an ANSI text file with `.ASM extension`.  The file will be sent to the PB-1000 where it's internal assembler will produce the executable program.
 - There is no requirement to make this compiler fast and it can use all the memory it needs because it will run under a powerful PC.  The compiler should use all the resources it needs in the host PC.
-- The compiler must be written in Python Python 3.12.x and ANTLR 4.13.x.
+- The compiler must be written in Python 3.12.x.
+- The lexer and parser must be **hand-written in pure Python** (no parser generators / no ANTLR / no external code-generation step), so the whole project can be executed and tested end-to-end with just Python.
 - The compiler will use the latest techniques to produce the most efficient and small code or fastest code depending on the -O command line switches.
 - Enable C programs to access and analyze the PB-1000ΓÇÖs RAM, including system variables from `&H6000` to `&H6FFF`.
 - Provide a programmer-friendly experience with intuitive syntax, built-in functions, and inline assembly.
@@ -41,7 +50,7 @@ The compiler must:
   - Hexadecimal literals: Prefixed with `0x` or `0X`, representing base-16 (e.g., `0x1A3F`, `0XFF`). Case insensitive.
   - PB-1000 style of Hexadecimal literals: Prefixed with `&H` or `&h`, representing base-16 (e.g., `&H6000`, `&h6FFF`).
   - Octal literals: Prefixed with `0`, representing base-8 (e.g., `0754`, `0123`).
-  - Binary literals: Newly introduced in C23, prefixed with `0b` or `0B`, representing base-2 (e.g., `0b1011`, `0B1100`).
+  - Binary literals (supported as a modern C extension): Prefixed with `0b` or `0B`, representing base-2 (e.g., `0b1011`, `0B1100`).
   - Character literals: Single characters enclosed in single quotes (e.g., `'A'`, `'z'`).
   - String literals: Sequences of characters enclosed in double quotes (e.g., `"Hello, world!"`).
 - **`volatile` Type Qualifier**:
@@ -264,40 +273,23 @@ The generalized `print()` statement is a built-in function added to the HD61700 
   - PB-1000 display supports ASCII 9 (TAB), 13 (CR), 10 (LF);
   - Empty calls (`print();`) are valid but do nothing; can be restricted via warnings if desired.
 
-##### Grammar File Details
-The `print()` statement will be defined into the ANTLR grammar as a statement, leveraging existing rules for expressions and variadic arguments. 
+##### Parsing Notes (Hand-written Parser)
 
-You could use the below are the relevant grammar excerpts to use as a starting point:
+`print()` is parsed as a **statement** (not an expression) with the following grammar:
 
-- **Lexer Rule**:
-  ```
-  PRINT: 'print';  // Keyword for the print statement
-  ```
+```ebnf
+print_statement := "print" "(" [ expression { "," expression } ] ")" ";" ;
+```
 
-- **Parser Rules**:
-  ```
-  statement
-      : expr ';'                                   # expressionStatement
-      // ... other statement rules (e.g., if, while, return) ...
-      | 'print' '(' exprList? ')' ';'              # printStatement
-      ;
+**Parsing rule (recursive-descent):**
+- When the current token is the keyword `print`, parse a `PrintStatement` node.
+- Parse the parenthesized, comma-separated expression list (optional; `print();` is valid).
+- Require a trailing semicolon.
 
-  exprList: expr (',' expr)*;  // Supports variadic arguments
-
-  expr
-      : literal                                    # literalExpr
-      | ID                                         # variableExpr
-      // ... other expression rules ...
-      ;
-  ```
-
-- **Explanation**:
-  - The `PRINT` lexer rule recognizes the `print` keyword.
-  - The `printStatement` rule in `statement` defines `print` as a standalone statement, accepting an optional `exprList` (zero or more expressions) and requiring a semicolon.
-  - `exprList` handles variadic arguments, allowing mixed types (e.g., `STRING`, `ID` for variables or terminators).
-  - `expr` supports the necessary argument types via existing rules (e.g., `literal` for `STRING`, `ID` for variables or `enum Terminator` values like `CRLF`).
-- **Existing Support**:
-  - The grammar must include `enum` declarations (e.g., `enum Terminator {SPACE, TAB, CR, LF, CRLF };`) and type rules for `char*` and `int`, ensuring compatibility.
+**Notes:**
+- Treat `print` as a reserved keyword (not an identifier).
+- Reuse the normal `expression` parser for each argument, so literals/identifiers/casts/etc. work naturally.
+- Emit a clear error if `print` appears where an expression is required (e.g., `x = print(...);`).
 
 ##### Implementation Notes
 - **Code Generation**:
@@ -306,7 +298,7 @@ You could use the below are the relevant grammar excerpts to use as a starting p
   - Terminators: `LD $5, ascii; CAL &h95D7` (`&h95CE` for`CRLF`).
   - Registers (`$0`, `$5`, `IZ`) are managed carefully, with optional `PUSH`/`POP` for safety.
 - **Semantic Validation**:
-  - The Python visitor checks argument types using a symbol table, raising errors for invalid types (e.g., `print(struct_var);`).
+  - The semantic analysis pass checks argument types using a symbol table, raising errors for invalid types (e.g., `print(struct_var);`).
 - **Programmer Diagnostics**:
   - Syntax errors (e.g., missing semicolon, `print("Hello") + 1;`) are caught by the parser.
   - Semantic errors (e.g., wrong argument types) produce clear messages, enhancing usability.
@@ -320,7 +312,7 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
 *   **Modular ASM Templates:** Implement simple, fixed-logic built-ins (e.g., abs, min, max, memcpy, memset, peek*, poke*, get_second, get_minute, get_hour, put_char) each in a standalone `.ASM` file with professional-grade documentation.
 *   **Selective Inclusion:** During final assembly generation, track all called template-based built-ins. Append **only** the `.ASM` files corresponding to the *used* functions to the output. Unused templates are thus automatically excluded (Dead Code Elimination) without the need for optimization command line switches.
     *(Example: No `ABS.ASM` if `abs()` is unused.)*
-*   **Direct Code Generation:** Implement complex, type-dependent, or variadic built-ins (e.g., `print()`) via direct assembly emission during the compiler's code generation phase (Python/ANTLR visitor), analyzing arguments at compile time.
+*   **Direct Code Generation:** Implement complex, type-dependent, or variadic built-ins (e.g., `print()`) via direct assembly emission during the compiler's code generation phase (Python AST/codegen pass), analyzing arguments at compile time.
 *   **ABI Compliance:** **All** built-in functions, whether template-based or directly generated, **must** strictly adhere to the specified calling convention (parameter/return registers, caller/callee saves, stack usage).
 
 ### 7. Memory Management
@@ -334,10 +326,21 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
 ### 8. Assembly Output
 
 - **Format**:
-  - Generate text files with HD61700 assembly code, using syntax like `LD $2, $3` and `CAL &h9CE4`.
-  - Include pseudo-instructions: `ORG`, `START`, `DB`, `DW`.
+  - Generate a single ANSI text file containing HD61700 assembly compatible with the **PB-1000 built-in assembler**.
+  - Use only documented instruction formats (see Table 5.2 in the Assembly Guide).
+
+- **Directives (PB-1000 built-in assembler)**:
+  - Supported: `EQU`, `ORG`, `START`, `DB`, `DS`.
+  - Not supported: `DW` (emit words as two `DB` bytes, little-endian), macros, expressions, `#include`, conditional assembly, etc.
+  - `EQU` definitions must appear at the top of the file, before `ORG`.
+
+- **Labels (PB-1000 built-in assembler)**:
+  - Max 5 characters.
+  - Labels may be used **only** as operands for `JP`, `JR`, and `CAL`.
+  - Do **not** emit labels as immediates or address operands for `LD`, `ST`, `LDW`, `STW`, `PRE`, etc. Use literal numeric addresses (e.g., `&H7A20`) where an address is required.
+
 - **Compatibility**:
-  - Use only basic addressing modes (direct, immediate, indexed with `IX`, `IY`, `IZ`).
+  - Use only documented addressing modes (direct literals, register indirect `($n)`, indexed `(IX/IZ ┬▒ offset)` as supported).
   - Avoid undocumented features like `SX`, `SY`, `SZ`.
 
 ### 9. Optimization
@@ -375,7 +378,7 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
   - Exclude `float`, `double`, and related operations due to hardware limitations.
 - **Standard Library**:
   - Omit `<stdio.h>`, `<stdlib.h>`, etc., relying on built-in functions.
-- **C23-Specific Features**:
+- **Recent C Features Not Supported**:
   - Exclude `constexpr`, `typeof`, and digit separators to simplify implementation.
   - Exclude 64-bit integers (`int64_t`) due to performance overhead on 16-bit hardware.
 - **Advanced Preprocessor**:
@@ -789,7 +792,7 @@ The `peek`/`poke` family of built-in functions offers a convenient alternative s
 
 # Addendum: Licensing
 
-- All new source files carry a BSD-3 licence header (matches ANTLR runtime).
+- All new source files carry a BSD-3-Clause license header.
 
 # Addendum: Python guidelines
 
