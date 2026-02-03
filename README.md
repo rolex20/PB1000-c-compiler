@@ -1,4 +1,4 @@
-# PBCC — PB-1000 / HD61700 C Cross Compiler (WIP)
+# Casio PB-1000 C Cross Compiler (WIP)
 
 **Status:** Under construction. This repository is currently documentation-first and will evolve into a working compiler implementation.
 
