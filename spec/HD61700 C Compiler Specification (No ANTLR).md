@@ -4,7 +4,7 @@
 
 ## Introduction
 
-This document defines the requirements for a modern C cross compiler designed for the Hitachi HD61700 CPU in the Casio PB-1000 handheld computer. The compiler aims to provide a joyful programming experience, enabling developers to create small benchmarking programs and detailed RAM analysis tools. It excludes floating-point support, focusing on integer operations, and omits a standard library while providing built-in functions for essential tasks. The specification ensures compatibility with the HD61700ΓÇÖs architecture and the PB-1000ΓÇÖs environment, supporting inline assembly for direct system call interaction. A comparison with the C23 standard highlights differences to aid decision-making on additional features.
+This document defines the requirements for a modern C cross compiler designed for the Hitachi HD61700 CPU in the Casio PB-1000 handheld computer. The compiler aims to provide a joyful programming experience, enabling developers to create small benchmarking programs and detailed RAM analysis tools. It excludes floating-point support, focusing on integer operations, and omits a standard library while providing built-in functions for essential tasks. The specification ensures compatibility with the HD61700’s architecture and the PB-1000’s environment, supporting inline assembly for direct system call interaction. A comparison with the C23 standard highlights differences to aid decision-making on additional features.
 
 
 ## Conformance and Implementation Constraints
@@ -13,21 +13,22 @@ This document defines the requirements for a modern C cross compiler designed fo
 - The C23 standard is referenced only for terminology and comparison.
 - Any syntax or feature not explicitly listed as supported in this specification should produce a clear compile-time error.
 - Implementation constraint: the compiler must be runnable and testable using **only Python** (no Java / no ANTLR / no external parser generator).
+- Implement a Pratt or precedence-climbing expression parser for operator precedence/associativity.  Do not implement a LALR(1)/LR table generation, in other words, no parser generators needed.
 
 ## Compiler Objectives
 
 The compiler must:
 
 - Maximize programmer joy with intuitive C-like syntax, and advanced code generation surpassing the built-in PB-1000 BASIC interpreter in convenience, expressiveness, structured programming, advanced programming features and code execution performance.
-- Generate HD61700 assembly code in one text file, compatible with the PB-1000ΓÇÖs internal assembler.
+- Generate HD61700 assembly code in one text file, compatible with the PB-1000’s internal assembler.
 - The compiler will run on a powerful PC and will generate assembly code in an ANSI text file with `.ASM extension`.  The file will be sent to the PB-1000 where it's internal assembler will produce the executable program.
 - There is no requirement to make this compiler fast and it can use all the memory it needs because it will run under a powerful PC.  The compiler should use all the resources it needs in the host PC.
 - The compiler must be written in Python 3.12.x.
 - The lexer and parser must be **hand-written in pure Python** (no parser generators / no ANTLR / no external code-generation step), so the whole project can be executed and tested end-to-end with just Python.
 - The compiler will use the latest techniques to produce the most efficient and small code or fastest code depending on the -O command line switches.
-- Enable C programs to access and analyze the PB-1000ΓÇÖs RAM, including system variables from `&H6000` to `&H6FFF`.
+- Enable C programs to access and analyze the PB-1000’s RAM, including system variables from `&H6000` to `&H6FFF`.
 - Provide a programmer-friendly experience with intuitive syntax, built-in functions, and inline assembly.
-- Handle the HD61700ΓÇÖs 8-bit and 16-bit operations efficiently, respecting memory and register constraints.
+- Handle the HD61700’s 8-bit and 16-bit operations efficiently, respecting memory and register constraints.
 
 ## C Supported Features
 
@@ -247,7 +248,7 @@ RTN
 
 #### Generalized and built-in `print()` Statement Specification
 
-The generalized `print()` statement is a built-in function added to the HD61700 C Cross Compiler Specification for the Casio PB-1000ΓÇÖs Hitachi HD61700 CPU. It enhances programmer joy by allowing flexible, formatted output of mixed data types in a single statement, streamlining code for benchmarking programs and RAM analysis tools. It will support variadic arguments, including string literals, string variables (`char*`), integer variables (`int`), and terminator identifiers (`SPACE`, `TAB`, `CR`, `LF`, `CRLF`) defined via an `enum Terminator`. It is designed as a statement, not an expression, to reflect its `void` nature and prevent misuse in expression contexts (e.g., `x = print("Hello");`). The implementation leverages existing system calls (`&h9664` for strings, `&h95D7` for characters, `&hD03A` for integer-to-BCD conversion) and generates efficient HD61700 assembly at compile time, avoiding runtime parsing to respect the PB-1000ΓÇÖs limited RAM and 16-bit CPU constraints.
+The generalized `print()` statement is a built-in function added to the HD61700 C Cross Compiler Specification for the Casio PB-1000’s Hitachi HD61700 CPU. It enhances programmer joy by allowing flexible, formatted output of mixed data types in a single statement, streamlining code for benchmarking programs and RAM analysis tools. It will support variadic arguments, including string literals, string variables (`char*`), integer variables (`int`), and terminator identifiers (`SPACE`, `TAB`, `CR`, `LF`, `CRLF`) defined via an `enum Terminator`. It is designed as a statement, not an expression, to reflect its `void` nature and prevent misuse in expression contexts (e.g., `x = print("Hello");`). The implementation leverages existing system calls (`&h9664` for strings, `&h95D7` for characters, `&hD03A` for integer-to-BCD conversion) and generates efficient HD61700 assembly at compile time, avoiding runtime parsing to respect the PB-1000’s limited RAM and 16-bit CPU constraints.
 
 ##### Key Features
 - **Syntax**: `print(expr1, expr2, ...);`
@@ -265,9 +266,9 @@ The generalized `print()` statement is a built-in function added to the HD61700 
   - Uses intuitive `enum` terminators (e.g., `CRLF` instead of `"CRLF"`) for readability and type safety.
 - **Efficiency**:
   - Compile-time code generation ensures no runtime parsing, minimizing resource usage.
-  - Code size: ~6ΓÇô8 bytes per string, 10ΓÇô20 bytes per integer (due to BCD conversion), 4ΓÇô8 bytes per terminator.
+  - Code size: ~6–8 bytes per string, 10–20 bytes per integer (due to BCD conversion), 4–8 bytes per terminator.
 - **Integration**:
-  - Uses documented system calls (`&h9664`, `&h95D7`, `&hD03A`, `&h95CE`), aligning with the specificationΓÇÖs reliance on PB-1000 ROM routines.
+  - Uses documented system calls (`&h9664`, `&h95D7`, `&hD03A`, `&h95CE`), aligning with the specification’s reliance on PB-1000 ROM routines.
 - **Constraints**:
   - Validates argument types (string literal, `char*`, `int`, `enum Terminator`) to prevent errors, with clear diagnostics.
   - PB-1000 display supports ASCII 9 (TAB), 13 (CR), 10 (LF);
@@ -283,7 +284,7 @@ print_statement := "print" "(" [ expression { "," expression } ] ")" ";" ;
 
 **Parsing rule (recursive-descent):**
 - When the current token is the keyword `print`, parse a `PrintStatement` node.
-- Parse the parenthesized, comma-separated expression list (optional; `print();` is valid).
+- Parse the parenthesized, comma-separated expression list (optional; `print();` is valid).  Depending on the type of expresion, generate/emit the correct calls to the specific type-dependant ROM or optimized print routine in ASM.  
 - Require a trailing semicolon.
 
 **Notes:**
@@ -293,9 +294,9 @@ print_statement := "print" "(" [ expression { "," expression } ] ")" ";" ;
 
 ##### Implementation Notes
 - **Code Generation**:
-  - String literals/variables: `PRE IZ, addr; CAL &h9664`.
-  - Integers: `LDW $0, value; CAL &hD03A; CAL &h95D7` (with a loop for digits).
-  - Terminators: `LD $5, ascii; CAL &h95D7` (`&h95CE` for`CRLF`).
+  - String literals/variables: The optimized `PRSTZ` asm routine can be used (for null terminated strings).  `PRLB1` at &H9664 can only be used if you already know the length of the string.
+  - Unsigned 16-bit Integers: Optimized/custom `PRUI`.  See `Optimized Printing Routines for Casio PB-1000.md`
+  - Terminators: Use ROM based `PUTCH` or `OUTCR`.
   - Registers (`$0`, `$5`, `IZ`) are managed carefully, with optional `PUSH`/`POP` for safety.
 - **Semantic Validation**:
   - The semantic analysis pass checks argument types using a symbol table, raising errors for invalid types (e.g., `print(struct_var);`).
@@ -305,7 +306,7 @@ print_statement := "print" "(" [ expression { "," expression } ] ")" ";" ;
 
 ##### Need for End-User Programs to Define the Terminator Enum
 
-To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print()` and `print_string()` built-in functions of the HD61700 C Compiler for the Casio PB-1000, end-user C programs must define `enum Terminator { SPACE, TAB, CR, LF, CRLF };` either at the top of their program or by including a standard header file (e.g., `pb1000.h`) that provides this definition. This enum ensures type-safe, readable identifiers for formatting output with control characters (e.g., `print("Hello", CRLF);` for a line break). Defining the enum directly in the program or via a header allows the compiler to recognize these identifiers, enabling intuitive, error-free code that aligns with C conventions and the specificationΓÇÖs focus on programmer joy. Without this definition, compilation will fail (e.g., ΓÇ£undefined identifier: CRLFΓÇ¥).
+To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print()` and `print_string()` built-in functions of the HD61700 C Compiler for the Casio PB-1000, end-user C programs must define `enum Terminator { SPACE, TAB, CR, LF, CRLF };` either at the top of their program or by including a standard header file (e.g., `pb1000.h`) that provides this definition. This enum ensures type-safe, readable identifiers for formatting output with control characters (e.g., `print("Hello", CRLF);` for a line break). Defining the enum directly in the program or via a header allows the compiler to recognize these identifiers, enabling intuitive, error-free code that aligns with C conventions and the specification’s focus on programmer joy. Without this definition, compilation will fail (e.g., “undefined identifier: CRLF”).
 
 ### Built-in Function Implementation Strategy
 
@@ -318,7 +319,7 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
 ### 7. Memory Management
 
 - **Code Placement**:
-  - Generate code starting at `&H7000`, avoiding system areas (`&H6000`ΓÇô`&H6FFF`).
+  - Generate code starting at `&H7000`, avoiding system areas (`&H6000`–`&H6FFF`).
 - **RAM Access**:
   - Allow direct access to system variables (e.g., `LCDST` at `&H68C7`) for RAM analysis.
   - Support pointer-based access to any valid memory address.
@@ -328,7 +329,6 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
 - **Format**:
   - Generate a single ANSI text file containing HD61700 assembly compatible with the **PB-1000 built-in assembler**.
   - Use only documented instruction formats (see Table 5.2 in the Assembly Guide).
-  - Include pseudo-instructions: `EQU`, `ORG`, `START`, `DB`
 
 - **Directives (PB-1000 built-in assembler)**:
   - Supported: `EQU`, `ORG`, `START`, `DB`, `DS`.
@@ -341,7 +341,7 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
   - Do **not** emit labels as immediates or address operands for `LD`, `ST`, `LDW`, `STW`, `PRE`, etc. Use literal numeric addresses (e.g., `&H7A20`) where an address is required.
 
 - **Compatibility**:
-  - Use only documented addressing modes (direct literals, register indirect `($n)`, indexed `(IX/IZ ┬▒ offset)` as supported).
+  - Use only documented addressing modes (direct literals, register indirect `($n)`, indexed `(IX/IZ ± offset)` as supported).
   - Avoid undocumented features like `SX`, `SY`, `SZ`.
 
 ### 9. Optimization
@@ -354,19 +354,19 @@ To use terminator identifiers (`SPACE` `TAB`, `CR`, `LF`, `CRLF`) in the `print(
   - Favor 16-bit instructions (`LDW`, `ADW`) for performance when handling `int`.
   - Use system calls for complex operations (e.g., multiplication via `&h9CE4`).
 - **Code Size**:
-  - Minimize code size to fit within the PB-1000ΓÇÖs limited RAM, optimal selection of instruction to issue.
+  - Minimize code size to fit within the PB-1000’s limited RAM, optimal selection of instruction to issue.
 - **Register Allocation Policy for $30/$31**:
   - **Immutable by default:** `$30` and `$31` hold the PIC base and must never be used for ordinary temporaries.
-  - **Last resort fallback:** If *all* other caller saved registers (`$24ΓÇª$29`, etc.) are exhausted, the allocator may temporarily assign a value to `$30` or `$31`.
+  - **Last resort fallback:** If *all* other caller saved registers (`$24 to $29`, etc.) are exhausted, the allocator may temporarily assign a value to `$30` or `$31`.
   - **Auto restore before ROM calls:** Any time the compiler lowers a ROM `CAL` instruction, it must check if `$30/$31` were dirtied and, only if so, emit instructions to reload their original PIC base values immediately before the call.  Also before returning from MAIN.
-- **Suggested Preferred scratch register block is `$24 ΓÇô $29`**
+- **Suggested Preferred scratch register block is `$24 to $29`**
   - Allocator may spill/expand beyond it.
 
 
 ### 10. Error Handling
 
 - **Normal Output**:
-  - While a silent output would be the normal-composed-professional behavior for a compiler that did not detected errors or warnings, in the PB-1000, we need to know how many bytes are required for the program to run, and issue a CLEAR ,XXXX instruction to reserve the required space.  So if all goes well, the compiler needs to display a concise, brief, succint and professional message indicating program size in bytes and total space required from &H7000 if ORG is not &H7000.
+  - While a silent output would be the normal-composed-professional behavior for a compiler that did not detected errors or warnings, in the PB-1000, we need to know how many bytes are required for the program to run, and issue a CLEAR ,XXXX instruction to reserve the required space.  So if all goes well, the compiler needs to display a concise, brief, succint and professional message indicating program size in bytes and total space required from &H7000 which is normally the most common starting point.
 - **Diagnostics**:
   - Provide clear error messages for syntax errors, type mismatches, and memory violations.
   - Warn about potential register clobbering in inline assembly.
@@ -422,23 +422,23 @@ LDW $0, &h7002  ; Load global variable 'result' into register pair $0 and $1
 ## Toolchain Integration Workflow 
 
 1. **Cross-Compile**:  
-   - Open-source HD61 cross-compiler processes `.ASM` ΓåÆ emits errors (if any).  HD61 is a command line PC/Windows program.  This can only be used when the compiler is finally able to produce a full complete assembler program.  
+   - Open-source HD61 cross-compiler processes `.ASM` → emits errors (if any).  HD61 is a command line PC/Windows program.  This can only be used when the compiler is finally able to produce a full complete assembler program.  
    - Additionally, if the AI can execute python programs, it can invoke pb1klinter.py which has been developed exclusively for this project and to help AI to fix bugs in the generated assembler HD61700 code.
    - **Debug Cycle**:  
-     - Human relays errors ΓåÆ AI regenerates `.ASM`.  (HD61)
+     - Human relays errors → AI regenerates `.ASM`.  (HD61)
 	 - AI analyzes errors output from pb1klinter.py
      - Repeat until HD61 assembles successfully.  
 
 2. **Emulator Testing**:  
    - `RAMTRANS` (CLI) loads binary into Delphi-based PB-1000 emulator.  
    - **Debug Cycle**:  
-     - Run in emulator ΓåÆ detect errors ΓåÆ AI adjusts code.  
+     - Run in emulator → detect errors → AI adjusts code.  
      - Repeat until success.  
 
 3. **Hardware Deployment**:  
    - Transfer binary to real PB-1000 via serial cable.  
    - **Debug Cycle**:  
-     - Test on hardware ΓåÆ detect errors ΓåÆ AI adjusts code.  
+     - Test on hardware → detect errors → AI adjusts code.  
      - Repeat until success.  
 
 **Key Tools**:  
@@ -455,22 +455,22 @@ The following table specifies the list of optimization techniques to implement i
 
 | **Rank** | **Optimization Technique**                                  | **Proposed `-O` Switch**                                       | **Primary Gains**                         |
 |----------|--------------------------------------------------------------|----------------------------------------------------------------|-------------------------------------------|
-| **0**    | **No Optimization**                                          | `-O0`                                                        | Primarily for debugging and development, with a simple, stack-based code generator: Straight parser ΓåÆ AST ΓåÆ naive codegen.	Simple, local, stack-based register allocations strategy.  Direct mapping of AST to assembler.  No constant propagation, instruction scheduling, or redundant code removal.  Preserves source structure for easy debugging. |
-| **1**    | **Local Dead Code Elimination**                              | `-Olocal_dead_code_elimination`                              | **Smallest Code** ΓÇö Removes unreachable and redundant code. |
-| **2**    | **Constant Folding & Propagation**                           | `-Oconstant_folding_and_propagation`                         | **Smallest Code / Efficiency** ΓÇö Precomputes constant expressions at compile time, reducing unnecessary operations. |
-| **3**    | **Peephole Optimization (Simple)**                           | `-Opeephole_optimization_simple`                             | **Smallest Code** ΓÇö Rewrites small instruction patterns to be more compact. |
-| **4**    | **Advanced Peephole Optimization**                           | `-Opeephole_optimization_advanced`                           | **Smallest Code** ΓÇö Expands the peephole window to remove more redundant sequences. |
-| **5**    | **Exhaustive Peephole/Rewriting**                            | `-Opeephole_optimization_exhaustive`                         | **Smallest Code** ΓÇö A final cleanup to ensure the shortest possible instruction sequences. |
-| **6**    | **Global Register Allocation (Graph Coloring)**              | `-Oglobal_register_allocation_graph_coloring`                | **Efficiency** ΓÇö Minimizes spills and improves register usage across the entire function. |
-| **7**    | **Loop Invariant Code Motion**                               | `-Oloop_invariant_code_motion`                               | **Efficiency** ΓÇö Moves constant computations out of loops to reduce redundant execution. |
-| **8**    | **Basic Interprocedural Refactoring**                        | `-Ointerprocedural_refactoring_basic`                        | **Efficiency** ΓÇö Cleans up redundant operations across function boundaries. |
-| **9**    | **Interprocedural Optimization**                             | `-Ointerprocedural_optimization`                             | **Efficiency** ΓÇö Further streamlines cross-function execution paths and removes redundant calculations globally. |
-| **10**   | **Simple Instruction Scheduling**                            | `-Oinstruction_scheduling_simple`                            | **Fastest Execution Speed** ΓÇö Performs local reordering within blocks to reduce stalls. |
-| **11**   | **Multi-Pass Instruction Scheduling**                        | `-Oinstruction_scheduling_multi_pass`                        | **Fastest Execution Speed** ΓÇö Optimizes instruction order across basic blocks to reduce stalls. |
-| **12**   | **Advanced Branch Prediction/Conditional Optimization**      | `-Obranch_prediction_and_conditional_optimization_advanced`  | **Fastest Execution Speed** ΓÇö Reorders branches for optimal CPU prediction performance. |
-| **13**   | **Aggressive Function Inlining**                             | `-Oaggressive_function_inlining`                             | **Fastest Execution Speed** ΓÇö Eliminates function call overhead by merging functions into their callers. |
+| **0**    | **No Optimization**                                          | `-O0`                                                        | Primarily for debugging and development, with a simple, stack-based code generator: Straight parser → AST → naive codegen.	Simple, local, stack-based register allocations strategy.  Direct mapping of AST to assembler.  No constant propagation, instruction scheduling, or redundant code removal.  Preserves source structure for easy debugging. |
+| **1**    | **Local Dead Code Elimination**                              | `-Olocal_dead_code_elimination`                              | **Smallest Code** — Removes unreachable and redundant code. |
+| **2**    | **Constant Folding & Propagation**                           | `-Oconstant_folding_and_propagation`                         | **Smallest Code / Efficiency** — Precomputes constant expressions at compile time, reducing unnecessary operations. |
+| **3**    | **Peephole Optimization (Simple)**                           | `-Opeephole_optimization_simple`                             | **Smallest Code** — Rewrites small instruction patterns to be more compact. |
+| **4**    | **Advanced Peephole Optimization**                           | `-Opeephole_optimization_advanced`                           | **Smallest Code** — Expands the peephole window to remove more redundant sequences. |
+| **5**    | **Exhaustive Peephole/Rewriting**                            | `-Opeephole_optimization_exhaustive`                         | **Smallest Code** — A final cleanup to ensure the shortest possible instruction sequences. |
+| **6**    | **Global Register Allocation (Graph Coloring)**              | `-Oglobal_register_allocation_graph_coloring`                | **Efficiency** — Minimizes spills and improves register usage across the entire function. |
+| **7**    | **Loop Invariant Code Motion**                               | `-Oloop_invariant_code_motion`                               | **Efficiency** — Moves constant computations out of loops to reduce redundant execution. |
+| **8**    | **Basic Interprocedural Refactoring**                        | `-Ointerprocedural_refactoring_basic`                        | **Efficiency** — Cleans up redundant operations across function boundaries. |
+| **9**    | **Interprocedural Optimization**                             | `-Ointerprocedural_optimization`                             | **Efficiency** — Further streamlines cross-function execution paths and removes redundant calculations globally. |
+| **10**   | **Simple Instruction Scheduling**                            | `-Oinstruction_scheduling_simple`                            | **Fastest Execution Speed** — Performs local reordering within blocks to reduce stalls. |
+| **11**   | **Multi-Pass Instruction Scheduling**                        | `-Oinstruction_scheduling_multi_pass`                        | **Fastest Execution Speed** — Optimizes instruction order across basic blocks to reduce stalls. |
+| **12**   | **Advanced Branch Prediction/Conditional Optimization**      | `-Obranch_prediction_and_conditional_optimization_advanced`  | **Fastest Execution Speed** — Reorders branches for optimal CPU prediction performance. |
+| **13**   | **Aggressive Function Inlining**                             | `-Oaggressive_function_inlining`                             | **Fastest Execution Speed** — Eliminates function call overhead by merging functions into their callers. |
 
-- **Post-Expansion Replay:**  After any pass that inlines or reorganizes code (e.g. interprocedural or inlining), if the userΓÇÖs `-OΓÇª` switches enabled them, rerun in this order:  
+- **Post-Expansion Replay:**  After any pass that inlines or reorganizes code (e.g. interprocedural or inlining), if the user’s `-O…` switches enabled them, rerun in this order:  
   1. Constant folding & propagation (rank 2)  
   2. Local dead-code elimination (rank 1)  
   3. All peephole passes (ranks 3, 4 and 5)  
@@ -507,7 +507,7 @@ While the HD61700 features many two-operand instructions, the benefits of SSA fo
 
 ## Conclusion
 
-This specification defines a modern and professional C cross compiler for the HD61700 CPU, balancing programmer joy with hardware constraints. It supports advanced features for benchmarking and RAM analysis, leveraging inline assembly and system calls for efficiency. The compiler ensures compatibility with the PB-1000ΓÇÖs assembler, enabling small, performant programs maximizing programming joy for retro computing enthusiasts.
+This specification defines a modern and professional C cross compiler for the HD61700 CPU, balancing programmer joy with hardware constraints. It supports advanced features for benchmarking and RAM analysis, leveraging inline assembly and system calls for efficiency. The compiler ensures compatibility with the PB-1000’s assembler, enabling small, performant programs maximizing programming joy for retro computing enthusiasts.
 
 
 # Addendum: Label Naming Convention for Generated Assembly (Revised)
@@ -791,6 +791,9 @@ While direct pointer access with the `volatile` keyword (`*(volatile unsigned ch
 
 The `peek`/`poke` family of built-in functions offers a convenient alternative syntax for direct memory access on the PB-1000, complementing the standard `volatile` qualifier. The compiler ensures these functions generate efficient, non-optimized memory operations internally, leveraging the HD61700's register indirect addressing modes for optimal performance.
 
+# Addendum: Licensing
+
+- All new source files carry a BSD-3-Clause license header.
 
 # Addendum: Python guidelines
 
@@ -803,77 +806,9 @@ The `peek`/`poke` family of built-in functions offers a convenient alternative s
 
 ## Project Layout
 
-- This is a conceptual recommended folder structure for files to be created.
-.
-├── pyproject.toml
-├── pb1kcc.py              # main controller (CLI + orchestration entrypoint)
-├── README.md
-├── LICENSE
-├── NOTICE
-├── CITATION.cff
-│
-├── spec/                 # design/spec/validation markdown files (source of truth)
-│   ├── HD61700 C Compiler Specification.md
-│   ├── HD61700 C Cross Compiler Project Plan.md
-│   ├── HD61700 PB-1000 Compiler Developer Lessons Learned (Phase 0).md
-│   ├── Phase 0 Validation Prompts.md
-│   ├── Addendum Results from Phase 0.md
-│   └── HD61700 PB-1000 Assembly Guide Old.md
-│
-├── docs/                 # end-user docs (how to install/run, CLI, examples)
-│   └── usage.md
-│
-├── src/                  # Python “src layout” (recommended)
-│   └── pb1kcc/
-│       ├── __init__.py
-│       ├── __main__.py   # enables: python -m pb1kcc ...
-│       ├── cli.py        # arg parsing, orchestration
-│       ├── diagnostics.py
-│       ├── config.py
-│       │
-│       ├── frontend/
-│       │   ├── tokens.py
-│       │   ├── lexer.py
-│       │   ├── ast.py
-│       │   └── parser.py
-│       │
-│       ├── sema/
-│       │   ├── types.py
-│       │   ├── symbols.py
-│       │   └── typecheck.py
-│       │
-│       ├── ir/           # can start empty, but reserved for later phases
-│       │   ├── ir.py
-│       │   └── builder.py
-│       │
-│       ├── passes/       # optimizations/lowering steps
-│       │   └── __init__.py
-│       │
-│       ├── backend/
-│       │   ├── asm_emit.py
-│       │   ├── callingconv.py
-│       │   └── codegen.py
-│       │
-│       └── target/
-│           └── pb1000_asm_constraints.py
-│
-├── tests/
-│   ├── unit/
-│   │   ├── test_lexer.py
-│   │   ├── test_parser.py
-│   │   └── test_typecheck.py
-│   ├── integration/
-│   │   └── test_compile_snippets.py
-│   └── golden/
-│       ├── c/            # input programs
-│       ├── ast/          # expected ast dumps (optional)
-│       ├── ir/           # expected ir dumps (optional)
-│       └── asm/          # expected asm output
-│
-└── examples/
-    ├── hello.c
-    └── fib.c
-
+1. Root: `pbcc.py` + `README.md`.
+1. Front-end, semantic core, lowering, IR, optimisation passes, and back-end each live in their own top-level folder under the project root (e.g. front_end/, semantic/, lowering/, ir/, passes/, back_end/).
+1. Tests:  All test files under `tests/`.
 
 ## Inline Documentation
 
@@ -882,4 +817,4 @@ The `peek`/`poke` family of built-in functions offers a convenient alternative s
 ## Modularity & Extensibility
 
 1. One responsibility per module/class/function.
-1. Generate beautiful, modular software design with intuitive abstractions, clean separation of concerns, DRY/KISS/SOLID principlesΓÇöso that any AI agent or human developer can immediately understand, maintain, and extend the code.
+1. Generate beautiful, modular software design with intuitive abstractions, clean separation of concerns, DRY/KISS/SOLID principles—so that any AI agent or human developer can immediately understand, maintain, and extend the code.
